@@ -1,0 +1,33 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/itsharpal/image-processing-service-s3.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/itsharpal/image-processing-service-s3/issues"
+  },
+  "homepage": "https://github.com/itsharpal/image-processing-service-s3#readme",
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.927.0",
+    "amqplib": "^0.10.9",
+    "argon2": "^0.44.0",
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.19.3",
+    "multer": "^2.0.2",
+    "redis": "^5.9.0",
+    "sharp": "^0.34.5"
+  }
+}
