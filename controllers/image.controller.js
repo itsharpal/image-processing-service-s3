@@ -1,6 +1,7 @@
 import { uploadToS3, getFromS3, deleteFromS3 } from "../utils/s3.js";
 import sharp from 'sharp'
 import { Image } from '../models/image.model.js';
+import redisClient from "../configs/redis.js";
 
 export const uploadImage = async (req, res) => {
     try {
@@ -27,6 +28,80 @@ export const uploadImage = async (req, res) => {
         res.status(500).json({
             success: false,
             message: "Error uploading image",
+            error: error.message,
+        });
+    }
+};
+
+export const transformImage = async (req, res) => {
+    try {
+        const userId = req.userId;
+        const { id } = req.params;
+        const { transformations } = req.body;
+
+        if (!id || !transformations) {
+            return res
+                .status(400)
+                .json({ message: "Image ID and transformations are required" });
+        }
+
+        const cachedImage = await redisClient.getAsync(id);
+        if (cachedImage) {
+            console.log("✅ Cache hit for image:", id);
+            return res.status(200).json({
+                success: true,
+                message: "Image fetched from cache",
+                imageUrl: JSON.parse(cachedImage),
+            });
+        }
+
+
+        const image = await Image.findById(id);
+        if (!image) {
+            return res.status(404).json({ message: "Image not found" });
+        }
+
+        const s3Object = await getFromS3(image.url);
+        if (!s3Object || !s3Object.data) {
+            return res.status(404).json({ message: "Image not found on S3" });
+        }
+
+        // Transform the image buffer using Sharp
+        let sharpInstance = sharp(await s3Object.data.Body.transformToByteArray());
+
+        if (transformations.resize) {
+            sharpInstance = sharpInstance.resize(transformations.resize);
+        }
+        if (transformations.rotate) {
+            sharpInstance = sharpInstance.rotate(transformations.rotate);
+        }
+        if (transformations.flip) sharpInstance = sharpInstance.flip();
+        if (transformations.flop) sharpInstance = sharpInstance.flop();
+        if (transformations.grayscale) sharpInstance = sharpInstance.grayscale();
+        if (transformations.format)
+            sharpInstance = sharpInstance.toFormat(transformations.format);
+
+        const transformedBuffer = await sharpInstance.toBuffer();
+
+        const transformedImageUrl = await uploadToS3({
+            path: null,
+            filename: `transformed-${Date.now()}-${id}.jpg`,
+            mimetype: "image/jpeg",
+            buffer: transformedBuffer,
+        });
+
+        redisClient.set(id, JSON.stringify(transformedImageUrl), "EX", 3600);
+
+        res.status(200).json({
+            success: true,
+            message: "Image transformed successfully",
+            imageUrl: transformedImageUrl,
+        });
+    } catch (error) {
+        console.error("❌ Transformation Error:", error);
+        res.status(500).json({
+            success: false,
+            message: "Error transforming image",
             error: error.message,
         });
     }
