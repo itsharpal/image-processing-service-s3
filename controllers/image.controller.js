@@ -42,7 +42,8 @@ export const transformImage = async (req, res) => {
                 .json({ message: "Image ID and transformations are required" });
         }
 
-        const cachedImage = await redisClient.getAsync(id);
+        // ✅ FIXED: Redis v4 uses .get() instead of .getAsync()
+        const cachedImage = await redisClient.get(id);
         if (cachedImage) {
             console.log("✅ Cache hit for image:", id);
             return res.status(200).json({
@@ -52,13 +53,14 @@ export const transformImage = async (req, res) => {
             });
         }
 
-
         const image = await Image.findById(id);
         if (!image) {
             return res.status(404).json({ message: "Image not found" });
         }
 
-        const s3Object = await getFromS3(image.url);
+        const s3Key = image.url.split('/').pop();
+
+        const s3Object = await getFromS3(s3Key);
         if (!s3Object || !s3Object.data) {
             return res.status(404).json({ message: "Image not found on S3" });
         }
@@ -87,7 +89,10 @@ export const transformImage = async (req, res) => {
             buffer: transformedBuffer,
         });
 
-        redisClient.set(id, JSON.stringify(transformedImageUrl), "EX", 3600);
+        // ✅ FIXED: Redis v4 .set() syntax
+        await redisClient.set(id, JSON.stringify(transformedImageUrl), {
+            EX: 3600, // cache expires in 1 hour
+        });
 
         res.status(200).json({
             success: true,

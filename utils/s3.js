@@ -15,13 +15,24 @@ const s3Client = new S3Client({
 export const uploadToS3 = async (file) => {
     if (!file) throw new Error("No file provided for upload.");
 
-    const fileStream = fs.createReadStream(file.path);
+    // ✅ Define fileStream before assigning
+    let fileStream;
+
+    if (file.buffer) {
+        fileStream = file.buffer; // used for Sharp buffer uploads
+    }
+    else if (file.path) {
+        fileStream = fs.createReadStream(file.path); // used for Multer uploads
+    }
+    else {
+        throw new Error("No file buffer or path provided");
+    }
 
     const uploadParams = {
         Bucket: process.env.AWS_BUCKET_NAME,
         Key: file.filename || file.originalname || `image-${Date.now()}`,
         Body: fileStream,
-        ContentType: file.mimetype,
+        ContentType: file.mimetype || "image/jpeg",
     };
 
     try {
@@ -35,7 +46,7 @@ export const uploadToS3 = async (file) => {
         };
     } catch (error) {
         console.error("❌ Error uploading file:", error);
-        return null;
+        throw new Error("S3 upload failed: " + error.message);
     }
 };
 
