@@ -13,10 +13,8 @@ export const uploadImage = async (req, res) => {
         }
 
         const imageUrl = await uploadToS3(file);
-        const image = await Image.create({
-            url: imageUrl,
-            userId
-        })
+        const image = new Image({ url: imageUrl.url, userId });
+        await image.save();
 
         res.status(201).json({
             success: true,
@@ -111,16 +109,27 @@ export const getImage = async (req, res) => {
         const { id } = req.params;
         if (!id) return res.status(400).json({ message: "Image ID is required" });
 
-        const image = await getFromS3(id);
-        if (!image) {
+        // 1️⃣ Find the image document in MongoDB
+        const imageDoc = await Image.findById(id);
+        if (!imageDoc) {
             return res.status(404).json({ message: "Image not found" });
         }
 
-        res.status(200).json({
-            success: true,
-            message: "Image retrieved successfully",
-            image,
-        });
+        // 2️⃣ Extract the S3 key (the filename)
+        const s3Key = imageDoc.url.split("/").pop();
+
+        // 3️⃣ Fetch the file stream from S3
+        const s3Response = await getFromS3(s3Key);
+        if (!s3Response || !s3Response.data) {
+            return res.status(404).json({ message: "File not found on S3" });
+        }
+
+        // 4️⃣ Set appropriate headers
+        res.setHeader("Content-Type", s3Response.data.ContentType || "image/jpeg");
+
+        // 5️⃣ Stream the image data directly to the response
+        s3Response.data.Body.pipe(res);
+
     } catch (error) {
         console.error("❌ Get Image Error:", error);
         res.status(500).json({
@@ -130,7 +139,6 @@ export const getImage = async (req, res) => {
         });
     }
 };
-
 
 export const deleteImage = async (req, res) => {
     try {
@@ -163,7 +171,7 @@ export const listImage = async (req, res) => {
         if (!userId)
             return res.status(400).json({ message: "User ID is required" });
 
-        const images = Image.find({ userId }).skip((page - 1) * 10).limit(parseInt(limit));
+        const images = await Image.find({ userId }).skip((page - 1) * limit).limit(parseInt(limit));
         res.status(200).json({
             success: true,
             message: "Images listed successfully",
