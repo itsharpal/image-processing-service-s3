@@ -35,7 +35,6 @@ export const uploadImage = async (req, res) => {
 
 export const transformImage = async (req, res) => {
     try {
-        const userId = req.userId;
         const { id } = req.params;
         const { transformations } = req.body;
 
