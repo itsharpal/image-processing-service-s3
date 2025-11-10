@@ -106,3 +106,26 @@ export const transformImage = async (req, res) => {
         });
     }
 };
+
+
+export const deleteImage = async (req, res) => {
+    try {
+        const { id } = req.params;
+        if (!id) return res.status(400).json({ message: "Image ID is required" });
+
+        await deleteFromS3(id);
+        await Image.findByIdAndDelete(id);
+
+        return res.status(200).json({
+            success: true,
+            message: "Image deleted successfully",
+        });
+    } catch (error) {
+        console.error("❌ Delete Error:", error);
+        res.status(500).json({
+            success: false,
+            message: "Error deleting image",
+            error: error.message,
+        });
+    }
+};
