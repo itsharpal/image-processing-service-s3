@@ -154,3 +154,28 @@ export const deleteImage = async (req, res) => {
         });
     }
 };
+
+
+export const listImage = async (req, res) => {
+    try {
+        const { userId } = req;
+        const { page = 1, limit = 10 } = req.query;
+
+        if (!userId)
+            return res.status(400).json({ message: "User ID is required" });
+
+        const images = Image.find({ userId }).skip((page - 1) * 10).limit(parseInt(limit));
+        res.status(200).json({
+            success: true,
+            message: "Images listed successfully",
+            images,
+        });
+    } catch (error) {
+        console.error("❌ List Error:", error);
+        res.status(500).json({
+            success: false,
+            message: "Error listing images",
+            error: error.message,
+        });
+    }
+};
