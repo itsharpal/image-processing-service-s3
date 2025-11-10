@@ -107,6 +107,31 @@ export const transformImage = async (req, res) => {
     }
 };
 
+export const getImage = async (req, res) => {
+    try {
+        const { id } = req.params;
+        if (!id) return res.status(400).json({ message: "Image ID is required" });
+
+        const image = await getFromS3(id);
+        if (!image) {
+            return res.status(404).json({ message: "Image not found" });
+        }
+
+        res.status(200).json({
+            success: true,
+            message: "Image retrieved successfully",
+            image,
+        });
+    } catch (error) {
+        console.error("❌ Get Image Error:", error);
+        res.status(500).json({
+            success: false,
+            message: "Error retrieving image",
+            error: error.message,
+        });
+    }
+};
+
 
 export const deleteImage = async (req, res) => {
     try {
